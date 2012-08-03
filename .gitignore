@@ -1,0 +1,8 @@
+*/target/
+back_up/*
+*~
+*/.classpath
+*/.settings
+*/.project
+*/.swp
+*/.cache
