@@ -20,44 +20,87 @@ object OpenIEQueryHelper extends QueryHelper {
   // this is done before betterQuery
   def queryHelp(query: Query): String = {
     val sb: StringBuilder = new StringBuilder()
-    val arg1 = query.arg1
-    val rel = query.rel
-    val arg2 = query.arg2
+    val arg1 = query.arg1.toLowerCase
+    val rel = query.rel.toLowerCase
+    val arg2 = query.arg2.toLowerCase
 
-    // if all three slots are filled in and both args are not type searches, try replacing an argument with a type
-    if (query.isFilled && (!arg1.contains("type:") || !arg2.contains("type:"))) {
-      sb.append("\nConsider replacing an argument with a type.\n\tExample: \"animals\" -> \"type:animal\".")
-    }
+    val filledAndNoTypes = query.isFilled && !arg1.contains("type:") && !arg2.contains("type:") 
+    val argsContainW = arg1.contains("who") || arg1.contains("what") || arg1.contains("which") || arg2.contains("what") || arg2.contains("which") || arg2.contains("who")
+    val filledAndType = query.isFilled && (arg1.contains("type:") || arg2.contains("type:"))
+    
+    val haveSuggestions = filledAndNoTypes || argsContainW || filledAndType
+    
+    if (haveSuggestions) sb.append("Suggestions:")
+    
+    // all three slots are filled in and both args are not type searches
+    if (filledAndNoTypes)
+      // leave an argument blank
+      sb.append("\n\tFilling out all three boxes is often unnecessary." +
+          "\n\t\tFor example, searching for (chemicals, kill, bacteria) " +
+          "will return less results than leaving the first argument blank " +
+          "and searching for (_, kill, bacteria) will return results for anything that kills bacteria." +
+      // or replace an argument with a type
+          "\n\t\tYou can also replace an argument with a relevant type: " +
+          "(type:chemical, kill, bacteria) will return all chemicals that kill bacteria.")
+
     // if an arg contains what, which, try replacing with type:
-    else if (arg1.contains("who") || arg1.contains("what") || arg1.contains("which") || arg2.contains("what") || arg2.contains("which") || arg2.contains("who"))
-      sb.append("\n\nConsider searching for types.\n\tExample: \"type:Swimmer\" instead of \"which swimmer\"")
+    else if (argsContainW)
+      sb.append("\n\tConsider searching for types.\n\t\tExample: \"type:Swimmer\" instead of \"which swimmer\"")
     
     // if either arg is a type search, ask for more general types
-    if (query.isFilled && (arg1.contains("type:") || arg2.contains("type:")))
-      sb.append("\nIt is possible that a type you are searching for is not defined in our database. Try broadening the type (e.g., \"type:athlete\" rather than \"type:swimmer\") or removing it altogether.")
+    if (filledAndType)
+      sb.append("\n\tIt is possible that a type you are searching for is not defined in our database. Try making the type more general or removing it altogether.")
     
+    
+    if (haveSuggestions) sb.append("\n\n")
     // general advice:
-    sb.append("\nMake sure all words are spelled correctly.")
-    sb.append("\nRelation queries should be a single verb containing no nouns.")
+    sb.append("General search tips:")
+    sb.append("\n\tMake sure all words are spelled correctly.")
+    sb.append("\n\tTry making searches less specific.")
+    sb.append("\n\tPunctuation marks can reduce the number of results.")
+    sb.append("\n\tRelation box should contain only a single verb, no nouns.")
     return sb.toString
   }
   
-  // at the moment all this does is look at the arguments for "what" or "which" and 
-  // replaces those with type queries. 
+  // cases covered:
+  //   arg1/arg2 have "which x" or "what x" -> replaced by "type:x"
+  //   rel has "verb a|an|the|some x" and arg2 is "" -> rel: verb, arg2: x
+  //   if the last token in a box ends with a punctuation mark, remove it.
+  //   if the query is of the form (where, is, x), immediately return (x, is located in, _)
   def betterQuery(query: Query): Query = {
+    if (query.arg1.toLowerCase == "where" && query.rel == "is" && query.hasArg2) {
+      return betterQuery(new Query(query.arg2, "is located in", ""))
+    }
+    
     val arg1 = query.arg1.toLowerCase.split(" ")
-    val rel = query.rel.toLowerCase
+    val rel = query.rel.toLowerCase.split(" ")
     val arg2 = query.arg2.toLowerCase.split(" ")
     
-    // these are what are actually returned
-    var a1 = arg1.mkString(" ")
-    var r = rel
-    var a2 = arg2.mkString(" ")
+    val replaceArg1 = arg1.length == 2 && (arg1(0) == "which" || arg1(0) == "what")
+    val replaceArg2 = arg2.length == 2 && (arg2(0) == "which" || arg2(0) == "what")
+    val splitRel = !query.hasArg2 && rel.length > 2 && (rel(1) == "a" || rel(1) == "an" || rel(1) == "the" || rel(1) == "some")
     
-    // replace "which" and "what" with "type:"
-    if (arg1.length == 2 && (arg1(0) == "which" || arg1(0) == "what")) { a1 = "type:" + arg1(1) }
-    if (arg2.length == 2 && (arg2(0) == "which" || arg2(0) == "what")) { a2 = "type:" + arg2(1) }
+    var a1 = ""
+    var r = ""
+    var a2 = ""
+      
+    a1 = if (replaceArg1) "type:" + arg1(1) else query.arg1
     
-    return new Query(a1, r, a2)
+    if (splitRel) {
+      r = rel(0)
+      a2 = rel.drop(2).mkString(" ")
+    } else {
+      r = query.rel
+      a2 = query.arg2
+    }
+    
+    if (replaceArg2) a2 = "type:" + arg2(1)
+    
+    // check for punctuation
+    if (a1.endsWith(".") || a1.endsWith("!") || a1.endsWith("?")) a1 = a1.dropRight(1)
+    if (r.endsWith(".") || r.endsWith("!") || r.endsWith("?")) r = r.dropRight(1)
+    if (a2.endsWith(".") || a2.endsWith("!") || a2.endsWith("?")) a2 = a2.dropRight(1)
+    
+    new Query(a1, r, a2)
   }
 }
