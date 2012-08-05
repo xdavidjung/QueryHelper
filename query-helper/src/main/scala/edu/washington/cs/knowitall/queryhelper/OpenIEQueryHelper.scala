@@ -33,38 +33,40 @@ object OpenIEQueryHelper extends QueryHelper {
     if (haveSuggestions) sb.append("Suggestions:")
     
     // all three slots are filled in and both args are not type searches
+    //  leave an argument blank
+    //  or replace an argument with a type.
     if (filledAndNoTypes)
-      // leave an argument blank
       sb.append("\n\tFilling out all three boxes is often unnecessary." +
           "\n\t\tFor example, searching for (chemicals, kill, bacteria) " +
           "will return less results than leaving the first argument blank " +
           "and searching for (_, kill, bacteria) will return results for anything that kills bacteria." +
-      // or replace an argument with a type
           "\n\t\tYou can also replace an argument with a relevant type: " +
           "(type:chemical, kill, bacteria) will return all chemicals that kill bacteria.")
 
-    // if an arg contains what, which, try replacing with type:
+    // if an arg contains what, which, try replacing with type
     else if (argsContainW)
       sb.append("\n\tConsider searching for types.\n\t\tExample: \"type:Swimmer\" instead of \"which swimmer\"")
     
     // if either arg is a type search, ask for more general types
     if (filledAndType)
-      sb.append("\n\tIt is possible that a type you are searching for is not defined in our database. Try making the type more general or removing it altogether.")
+      sb.append("\n\tIt is possible that a type you are searching for is not defined in our database. " + 
+          "Try making the type more general or removing it altogether.")
     
     
     if (haveSuggestions) sb.append("\n\n")
     // general advice:
     sb.append("General search tips:")
     sb.append("\n\tMake sure all words are spelled correctly.")
+    sb.append("\n\tClick on the example queries on the home page for proper usage.")
     sb.append("\n\tTry making searches less specific.")
-    sb.append("\n\tPunctuation marks can reduce the number of results.")
     sb.append("\n\tRelation box should contain only a single verb, no nouns.")
     return sb.toString
   }
   
   // cases covered:
   //   arg1/arg2 have "which x" or "what x" -> replaced by "type:x"
-  //   rel has "verb a|an|the|some x" and arg2 is "" -> rel: verb, arg2: x
+  //   rel has "verb a|an|the|some x" and arg2 is a2 and 
+  //     a2 is not of the form "which x" or "what x" -> rel: verb, arg2: x + a
   //   if the last token in a box ends with a punctuation mark, remove it.
   //   if the query is of the form (where, is, x), immediately return (x, is located in, _)
   def betterQuery(query: Query): Query = {
@@ -86,9 +88,10 @@ object OpenIEQueryHelper extends QueryHelper {
       
     a1 = if (replaceArg1) "type:" + arg1(1) else query.arg1
     
-    if (splitRel) {
+    // split only if arg2 does not need to be replaced
+    if (splitRel && !replaceArg2) {
       r = rel(0)
-      a2 = rel.drop(2).mkString(" ")
+      a2 = (rel.drop(2).mkString(" ") + " " + query.arg2) trim
     } else {
       r = query.rel
       a2 = query.arg2
