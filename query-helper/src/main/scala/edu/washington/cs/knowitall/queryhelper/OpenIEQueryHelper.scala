@@ -8,7 +8,7 @@ package edu.washington.cs.knowitall.queryhelper
  *      such as "type:animal", "entity:Golden retriever"
  *    If a user knows how to make proper searches, help them make queries more
  *      efficiently (autocomplete with known entities/types).
- *    If a user makes a query with an easy fix, automatically fix it. 
+ *    If a user makes a query with an easy fix, show them reformed, fixed query.
  *  
  *  what this module does NOT do:
  *    Spellcheck
@@ -24,18 +24,26 @@ object OpenIEQueryHelper extends QueryHelper {
     val rel = query.rel.toLowerCase
     val arg2 = query.arg2.toLowerCase
 
+    val singleBoxFilled = (query.hasArg1 && !query.hasRel && !query.hasArg2 && arg1.split(" ").length >= 3) || 
+                          (!query.hasArg1 && query.hasRel && !query.hasArg2 && rel.split(" ").length >= 3) || 
+                          (!query.hasArg1 && !query.hasRel && query.hasArg2 && arg2.split(" ").length >= 3) 
     val filledAndNoTypes = query.isFilled && !arg1.contains("type:") && !arg2.contains("type:") 
     val argsContainW = arg1.contains("who") || arg1.contains("what") || arg1.contains("which") || arg2.contains("what") || arg2.contains("which") || arg2.contains("who")
     val filledAndType = query.isFilled && (arg1.contains("type:") || arg2.contains("type:"))
     
-    val haveSuggestions = filledAndNoTypes || argsContainW || filledAndType
+    val haveSuggestions = filledAndNoTypes || argsContainW || filledAndType || singleBoxFilled
     
     if (haveSuggestions) sb.append("Suggestions:")
+    
+    // user tries to fill only a single box with a query
+    if (singleBoxFilled)
+      sb.append("\n\tIf you are putting an entire query in a single box, see the " +
+          "sample queries on the home page for examples of well-formed queries.")
     
     // all three slots are filled in and both args are not type searches
     //  leave an argument blank
     //  or replace an argument with a type.
-    if (filledAndNoTypes)
+    else if (filledAndNoTypes)
       sb.append("\n\tFilling out all three boxes is often unnecessary." +
           "\n\t\tFor example, searching for (chemicals, kill, bacteria) " +
           "will return less results than leaving the first argument blank " +
