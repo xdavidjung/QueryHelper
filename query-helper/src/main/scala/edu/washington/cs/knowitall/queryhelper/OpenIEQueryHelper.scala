@@ -27,8 +27,10 @@ object OpenIEQueryHelper extends QueryHelper {
     val singleBoxFilled = (query.hasArg1 && !query.hasRel && !query.hasArg2 && arg1.split(" ").length >= 3) || 
                           (!query.hasArg1 && query.hasRel && !query.hasArg2 && rel.split(" ").length >= 3) || 
                           (!query.hasArg1 && !query.hasRel && query.hasArg2 && arg2.split(" ").length >= 3) 
-    val filledAndNoTypes = query.isFilled && !arg1.contains("type:") && !arg2.contains("type:") 
-    val argsContainW = arg1.contains("who") || arg1.contains("what") || arg1.contains("which") || arg2.contains("what") || arg2.contains("which") || arg2.contains("who")
+    val filledAndNoTypes = query.isFilled && !arg1.contains("type:") && !arg2.contains("type:")
+    // TODO:
+    val argContainWho = false
+    val argsContainW = arg1.contains("what") || arg1.contains("which") || arg2.contains("what") || arg2.contains("which") || arg2.contains("who")
     val filledAndType = query.isFilled && (arg1.contains("type:") || arg2.contains("type:"))
     
     val haveSuggestions = filledAndNoTypes || argsContainW || filledAndType || singleBoxFilled
